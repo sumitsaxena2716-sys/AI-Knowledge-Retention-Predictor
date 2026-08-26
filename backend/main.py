@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from backend.models import LearnerData
 
 app = FastAPI(
     title="AI Knowledge Retention Predictor",
@@ -16,4 +17,12 @@ async def startup_event():
 def root():
     return {
         "message": "AI Knowledge Retention Predictor API is running"
+    }
+
+
+@app.post("/analyze")
+def analyze_learner(data: LearnerData):
+    return {
+        "message": "Learner data received successfully",
+        "data": data.model_dump()
     }
