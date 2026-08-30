@@ -1,41 +1,47 @@
 # AI Knowledge Retention Predictor
 
-AI-powered learning retention prediction system using Google Gemini, Python, FastAPI, and Streamlit.
+AI-assisted learning retention and knowledge reinforcement system using Google Gemini, Python, FastAPI, and Streamlit.
 
-## Features
+## Implemented Features
 
-- Learner concept input and management
-- AI-powered knowledge retention analysis
-- Retention risk prediction
-- Forgetting window estimation
+- Learner name and study concept management
+- Last revision date, quiz score, and difficulty tracking
+- AI-assisted retention analysis
+- Retention risk classification (Low / Medium / High)
+- Forgetting-window guidance
+- Recommended revision timing
 - Personalized study advice
-- Concept-wise retention dashboard
-- AI-generated adaptive quizzes
-- Quiz scoring and question-wise feedback
-- Progress bars and visual analytics
-- Interactive Streamlit interface
+- Concept-wise analysis and concept removal
+- Session-state persistence across Streamlit reruns and navigation
+- AI-generated 10-question multiple-choice quizzes
+- Structured JSON quiz output and validation
+- Quiz answer selection, scoring, and question-wise feedback
+- Progress indicators, metric cards, risk indicators, and visual analytics
+- FastAPI health check and API endpoints
+- Environment-variable based Gemini API configuration
+- Secure `.env` exclusion through `.gitignore`
+- Deployment-oriented dependency and setup documentation
 
 ## Project Structure
 
-    AI-Knowledge-Retention-Predictor/
-    │
-    ├── backend/
-    │   ├── main.py
-    │   ├── models.py
-    │   ├── prompts.py
-    │   ├── quiz.py
-    │   ├── retention.py
-    │   └── ai_client.py
-    │
-    ├── frontend/
-    │   └── app.py
-    │
-    ├── config.py
-    ├── test_gemini.py
-    ├── requirements.txt
-    ├── .env
-    ├── .gitignore
-    └── README.md
+```text
+AI-Knowledge-Retention-Predictor/
+├── backend/
+│   ├── main.py
+│   ├── models.py
+│   ├── prompts.py
+│   ├── quiz.py
+│   ├── retention.py
+│   └── ai_client.py
+├── frontend/
+│   └── app.py
+├── config.py
+├── test_gemini.py
+├── requirements.txt
+├── .env.example
+├── .gitignore
+└── README.md
+```
 
 ## Requirements
 
@@ -44,67 +50,98 @@ AI-powered learning retention prediction system using Google Gemini, Python, Fas
 - FastAPI
 - Uvicorn
 - Streamlit
+- Internet connection for Gemini API requests
 
 ## Installation
 
 Clone the repository:
 
-    git clone <repository-url>
-    cd AI-Knowledge-Retention-Predictor
+```bash
+git clone <repository-url>
+cd AI-Knowledge-Retention-Predictor
+```
 
-Create a virtual environment:
+Create and activate a virtual environment:
 
-    python -m venv .venv
+```bash
+python -m venv .venv
+```
 
-Activate the virtual environment on Windows:
+Windows PowerShell:
 
-    .venv\Scripts\activate
+```powershell
+.venv\Scripts\activate
+```
 
 Install dependencies:
 
-    pip install -r requirements.txt
+```bash
+pip install -r requirements.txt
+```
 
 ## Environment Configuration
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root using `.env.example` as a guide:
 
-    GEMINI_API_KEY=your_gemini_api_key
+```env
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-3.6-flash
+BACKEND_API_URL=http://127.0.0.1:8000
+```
 
-Keep the `.env` file private. Never commit or publish the API key.
+Keep `.env` private. Never commit or publish the API key.
+
+`GEMINI_MODEL` is configurable so the deployed environment can select an available Gemini model without changing application code.
 
 ## Running the Application
 
 ### Start Backend
 
-Run the FastAPI backend:
+Open a terminal in the project root:
 
-    uvicorn backend.main:app --reload --port 8000
+```bash
+uvicorn backend.main:app --reload --port 8000
+```
 
-Backend URL:
+Backend:
 
-    http://127.0.0.1:8000
+```text
+http://127.0.0.1:8000
+```
+
+API documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
 
 ### Start Frontend
 
-Open another terminal and run:
+Open another terminal in the project root:
 
-    streamlit run frontend/app.py
+```bash
+streamlit run frontend/app.py
+```
 
-Frontend URL:
+Frontend:
 
-    http://localhost:8501
+```text
+http://localhost:8501
+```
 
 ## Application Workflow
 
 1. Enter learner information.
-2. Add a study concept.
-3. Enter the latest quiz score and difficulty.
-4. Run retention analysis.
-5. Review the retention analysis dashboard.
-6. Generate an AI-powered quiz.
-7. Answer the quiz questions.
-8. Submit the quiz.
-9. Review the final score and question-wise feedback.
+2. Add one or more study concepts.
+3. Enter the latest quiz score, revision date, and difficulty.
+4. Remove a concept when it is no longer needed.
+5. Select a concept and run retention analysis.
+6. Review the retention dashboard.
+7. Generate an AI-powered quiz for the selected/current concept.
+8. Answer all quiz questions.
+9. Submit the quiz.
+10. Review the final score and question-wise feedback.
+11. Generate a new quiz when additional practice is required.
 
 ## API Endpoints
 
@@ -112,44 +149,73 @@ Frontend URL:
 
 Checks whether the backend API is running.
 
+### GET `/health`
+
+Returns a lightweight service-health response for deployment checks.
+
 ### POST `/analyze`
 
-Analyzes learner data and returns:
+Validates learner data and returns:
 
 - Quiz score
+- Difficulty
 - Retention risk
 - Forgetting window
 - Recommended revision timing
 - Personalized study advice
 
+The primary path uses Gemini for AI-assisted analysis. A deterministic fallback is used if the external AI service is temporarily unavailable.
+
 ### POST `/quiz`
 
-Generates a 10-question AI-powered multiple-choice quiz based on the selected topic and difficulty.
+Validates the quiz request and generates a topic-specific multiple-choice quiz. The current application requests 10 questions, each with exactly four options (A-D) and one correct answer.
 
-## Testing
+## Testing Checklist
 
 Before deployment, verify:
 
-- Concept input and management
-- Concept persistence across navigation and reruns
+- Concept addition and validation
+- Concept removal
+- Concept persistence across reruns/navigation
 - Retention analysis
-- Retention risk calculation
+- Retention risk calculation/guidance
 - Forgetting window
+- Revision timing
 - Personalized study advice
-- Dashboard visualizations
+- Dashboard metrics and visualizations
 - Quiz generation
 - Quiz answer selection
 - Quiz scoring
-- Correct and incorrect answer feedback
-- Navigation between application sections
-- Backend and frontend communication
-- Environment variable configuration
+- Correct and incorrect feedback
+- Backend/frontend communication
+- `/health` endpoint
+- Invalid API input handling
+- Gemini API configuration
+- Missing API-key handling
 
 ## Security
 
-API keys and environment variables must remain private.
+- Store the Gemini API key only in environment variables.
+- Keep `.env` out of version control.
+- Do not place API keys directly in Python source files.
+- Use deployment-platform secrets/environment variables in staging or production.
 
-The `.env` file is excluded from version control using `.gitignore`.
+## Current Scope vs Future Scope
+
+The current implementation is an AI-assisted retention and quiz application. It does **not** claim to implement a production-scale ML data lake, data warehouse, feature store, model registry, trained classification/sequence/ensemble models, CI/CD pipeline, production monitoring, or automated notification system.
+
+Those advanced components can be added later as the project grows. Possible future enhancements include:
+
+- Persistent learner database and learning history
+- Authentication and user profiles
+- Historical retention trend analysis
+- Trained predictive ML models using longitudinal learner data
+- Advanced feature engineering and model evaluation
+- Adaptive quiz difficulty based on previous attempts
+- Automated revision reminders and notifications
+- Cloud deployment with CI/CD
+- Monitoring and feedback loops
+- Educator/at-risk learner analytics
 
 ## Technology Stack
 
@@ -157,7 +223,8 @@ The `.env` file is excluded from version control using `.gitignore`.
 - FastAPI
 - Uvicorn
 - Streamlit
-- Google Gemini
+- Google Gemini / Google GenAI SDK
 - Pydantic
 - Plotly
 - Requests
+- Python-dotenv

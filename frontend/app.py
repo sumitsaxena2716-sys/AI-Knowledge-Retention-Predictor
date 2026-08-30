@@ -1,5 +1,18 @@
-import streamlit as st
+import os
+
 import requests
+import streamlit as st
+
+
+# =========================
+# Page Configuration
+# =========================
+
+st.set_page_config(
+    page_title="AI Knowledge Retention Predictor",
+    page_icon="🧠",
+    layout="wide"
+)
 
 
 # =========================================================
@@ -242,17 +255,6 @@ st.markdown("""
 
 
 # =========================
-# Page Configuration
-# =========================
-
-st.set_page_config(
-    page_title="AI Knowledge Retention Predictor",
-    page_icon="🧠",
-    layout="wide"
-)
-
-
-# =========================
 # Session State
 # =========================
 
@@ -264,6 +266,9 @@ if "concepts" not in st.session_state:
 
 if "analysis_results" not in st.session_state:
     st.session_state.analysis_results = None
+
+if "analyzed_topic" not in st.session_state:
+    st.session_state.analyzed_topic = None
 
 if "quiz_progress" not in st.session_state:
     st.session_state.quiz_progress = 0
@@ -290,6 +295,7 @@ view = st.radio(
 )
 
 st.session_state.current_view = view
+API_BASE_URL = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
 # =========================================================
@@ -409,6 +415,15 @@ if view == "Concept Input":
                 """
             )
 
+            if st.button("🗑️ Remove", key=f"remove_concept_{index}"):
+                removed_topic = st.session_state.concepts.pop(index - 1)["topic"]
+                st.session_state.analysis_results = None
+                st.session_state.quiz_questions = []
+                st.session_state.quiz_answers = {}
+                st.session_state.quiz_submitted = False
+                st.success(f"{removed_topic} removed successfully.")
+                st.rerun()
+
             st.divider()
 
 
@@ -418,79 +433,55 @@ if view == "Concept Input":
 
         st.subheader("Retention Analysis")
 
-        if st.button(
-            "Analyze Retention",
-            type="primary"
-        ):
+        concept_names = [c["topic"] for c in st.session_state.concepts]
+        selected_topic = st.selectbox(
+            "Concept to analyze",
+            concept_names,
+            key="analysis_topic_selector"
+        )
+        concept = next(
+            c for c in st.session_state.concepts
+            if c["topic"] == selected_topic
+        )
 
-            concept = st.session_state.concepts[-1]
-
+        if st.button("Analyze Retention", type="primary"):
             payload = {
-                "learner_name":
-                    st.session_state.learner_name,
-
-                "topic":
-                    concept["topic"],
-
-                "last_revision_date":
-                    concept["last_revision_date"],
-
-                "quiz_score":
-                    concept["quiz_score"],
-
-                "difficulty":
-                    concept["difficulty"]
+                "learner_name": st.session_state.learner_name,
+                "topic": concept["topic"],
+                "last_revision_date": concept["last_revision_date"],
+                "quiz_score": concept["quiz_score"],
+                "difficulty": concept["difficulty"]
             }
 
             try:
-
-                with st.spinner(
-                    "Analyzing knowledge retention..."
-                ):
-
+                with st.spinner("Analyzing knowledge retention..."):
                     response = requests.post(
-                        "http://127.0.0.1:8000/analyze",
+                        f"{API_BASE_URL}/analyze",
                         json=payload,
                         timeout=30
                     )
 
                 if response.status_code == 200:
-
                     result = response.json()
-
                     st.session_state.analysis_results = result
-
-                    st.success(
-                        "Retention analysis completed successfully!"
-                    )
-
+                    st.session_state.analyzed_topic = concept["topic"]
+                    st.success("Retention analysis completed successfully!")
                 else:
-
-                    st.error(
-                        f"Analysis failed. "
-                        f"Server returned status "
-                        f"{response.status_code}."
-                    )
+                    try:
+                        detail = response.json().get("detail", response.text)
+                    except Exception:
+                        detail = response.text
+                    st.error(f"Analysis failed: {detail}")
 
             except requests.exceptions.ConnectionError:
-
                 st.error(
-                    "Could not connect to the backend API. "
-                    "Make sure FastAPI is running on port 8000."
+                    f"Could not connect to the backend API at {API_BASE_URL}. "
+                    "Make sure FastAPI is running."
                 )
-
             except requests.exceptions.Timeout:
-
-                st.error(
-                    "The analysis request timed out. "
-                    "Please try again."
-                )
-
+                st.error("The analysis request timed out. Please try again.")
             except Exception as e:
-
-                st.error(
-                    f"An unexpected error occurred: {str(e)}"
-                )
+                st.error(f"An unexpected error occurred: {e}")
 
     else:
 
@@ -517,12 +508,15 @@ elif view == "Analysis Dashboard":
         # Last Analyzed Concept
         # =========================
 
-        if st.session_state.concepts:
-
+        analyzed_topic = st.session_state.get("analyzed_topic")
+        if analyzed_topic:
+            concept = next(
+                (c for c in st.session_state.concepts if c["topic"] == analyzed_topic),
+                {}
+            )
+        elif st.session_state.concepts:
             concept = st.session_state.concepts[-1]
-
         else:
-
             concept = {}
 
         topic = concept.get(
@@ -893,9 +887,17 @@ elif view == "Quiz":
                 type="primary"
             ):
 
+                analysis = st.session_state.get("analysis_results") or {}
                 quiz_payload = {
                     "topic": topic,
                     "difficulty": difficulty,
+                    "retention_risk": analysis.get("retention_risk", "Medium"),
+                    "forgetting_window": analysis.get("forgetting_window", "3-5 days"),
+                    "revision_timing": analysis.get("revision_timing", "Revise within 3 days"),
+                    "study_advice": analysis.get(
+                        "study_advice",
+                        "Review the concept regularly and practice with short quizzes."
+                    ),
                     "num_questions": 10
                 }
 
@@ -906,7 +908,7 @@ elif view == "Quiz":
                     ):
 
                         response = requests.post(
-                            "http://127.0.0.1:8000/quiz",
+                            f"{API_BASE_URL}/quiz",
                             json=quiz_payload,
                             timeout=60
                         )

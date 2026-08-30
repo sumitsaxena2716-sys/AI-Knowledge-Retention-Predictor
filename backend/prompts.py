@@ -1,7 +1,7 @@
 RETENTION_PROMPT = """
 You are an AI Knowledge Retention Analyzer.
 
-Analyze the learner's study information and estimate their knowledge retention.
+Analyze the learner's study information and estimate their knowledge retention. Treat the result as learning guidance, not a guaranteed measurement of human memory.
 
 Learner Information:
 - Learner Name: {learner_name}
@@ -43,7 +43,7 @@ def build_retention_prompt(learner_data):
 QUIZ_PROMPT = """
 You are an AI Quiz Generator.
 
-Generate exactly 10 multiple-choice questions based on the learner's topic and retention analysis.
+Generate exactly {num_questions} multiple-choice questions based on the learner's topic and retention analysis.
 
 Learner Information:
 - Topic: {topic}
@@ -51,7 +51,7 @@ Learner Information:
 - Difficulty: {difficulty}
 
 Rules:
-- Generate exactly 10 questions.
+- Generate exactly {num_questions} questions.
 - Each question must have exactly 4 options: A, B, C, D.
 - Only one option must be correct.
 - Questions must be relevant to the given topic.
@@ -83,5 +83,6 @@ def build_quiz_prompt(quiz_data):
     return QUIZ_PROMPT.format(
         topic=quiz_data["topic"],
         retention_risk=quiz_data["retention_risk"],
-        difficulty=quiz_data["difficulty"]
+        difficulty=quiz_data["difficulty"],
+        num_questions=quiz_data.get("num_questions", 10)
     )
