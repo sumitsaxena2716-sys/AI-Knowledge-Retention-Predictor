@@ -295,6 +295,19 @@ view = st.radio(
 )
 
 st.session_state.current_view = view
+
+# Optional learning analytics overview
+try:
+    summary_response = requests.get(f"{API_BASE_URL}/analytics/summary", timeout=5)
+    if summary_response.status_code == 200:
+        summary = summary_response.json()
+        with st.sidebar:
+            st.caption("Learning Analytics")
+            st.metric("Analyses", summary.get("total_analyses", 0))
+            st.metric("Average Score", f"{summary.get('average_quiz_score', 0):.1f}%")
+            st.metric("High Risk", summary.get("high_risk", 0))
+except Exception:
+    pass
 API_BASE_URL = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
@@ -910,7 +923,7 @@ elif view == "Quiz":
                         response = requests.post(
                             f"{API_BASE_URL}/quiz",
                             json=quiz_payload,
-                            timeout=60
+                            timeout=120
                         )
 
                     if response.status_code == 200:
@@ -1205,6 +1218,20 @@ elif view == "Quiz":
                     st.session_state.quiz_submitted = (
                         True
                     )
+
+                    try:
+                        requests.post(
+                            f"{API_BASE_URL}/quiz/feedback",
+                            json={
+                                "learner_name": st.session_state.learner_name,
+                                "topic": topic,
+                                "score": final_score,
+                                "total_questions": total_questions,
+                            },
+                            timeout=5,
+                        )
+                    except Exception:
+                        pass
 
                     st.rerun()
 

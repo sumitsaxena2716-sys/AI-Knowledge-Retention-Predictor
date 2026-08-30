@@ -1,26 +1,38 @@
 # AI Knowledge Retention Predictor
 
-AI-assisted learning retention and knowledge reinforcement system using Google Gemini, Python, FastAPI, and Streamlit.
+AI-assisted learning retention and knowledge reinforcement system using Google Gemini, FastAPI, Streamlit, Plotly, SQLite, and an optional machine-learning pipeline.
 
-## Implemented Features
+## Current Application Features
 
-- Learner name and study concept management
+- Learner and study concept management
 - Last revision date, quiz score, and difficulty tracking
-- AI-assisted retention analysis
-- Retention risk classification (Low / Medium / High)
-- Forgetting-window guidance
-- Recommended revision timing
-- Personalized study advice
-- Concept-wise analysis and concept removal
-- Session-state persistence across Streamlit reruns and navigation
-- AI-generated 10-question multiple-choice quizzes
-- Structured JSON quiz output and validation
-- Quiz answer selection, scoring, and question-wise feedback
-- Progress indicators, metric cards, risk indicators, and visual analytics
-- FastAPI health check and API endpoints
-- Environment-variable based Gemini API configuration
-- Secure `.env` exclusion through `.gitignore`
-- Deployment-oriented dependency and setup documentation
+- Gemini-assisted retention analysis
+- Retention risk, forgetting-window, revision timing, and study advice
+- Deterministic fallback when Gemini is unavailable
+- AI-generated 10-question MCQ quizzes
+- Structured JSON output and validation
+- Quiz scoring and feedback
+- Session-state persistence
+- Dashboard metrics, progress indicators, and visual analytics
+- SQLite learning-history storage
+- At-risk learner analytics endpoint
+- In-app retention alerts
+- Health and application metrics endpoints
+- Secure environment-variable configuration
+
+## Advanced Architecture Support
+
+The project also includes implementation-ready components for the broader architecture:
+
+- CSV ingestion, cleaning, and feature engineering
+- Optional Random Forest retention classifier
+- Accuracy, precision, recall, F1, and AUC-ROC evaluation when a suitable labeled dataset is supplied
+- Local data-lake / warehouse / feature-store directory structure
+- Model-registry structure for trained artifacts
+- Runtime monitoring metrics
+- GitHub Actions CI validation
+
+These advanced ML/data-engineering components are intentionally data-driven. The application does not fabricate training results or claim that a production ML model has been trained without a real labeled dataset.
 
 ## Project Structure
 
@@ -32,9 +44,21 @@ AI-Knowledge-Retention-Predictor/
 │   ├── prompts.py
 │   ├── quiz.py
 │   ├── retention.py
-│   └── ai_client.py
+│   ├── ai_client.py
+│   ├── storage.py
+│   ├── data_pipeline.py
+│   ├── ml_model.py
+│   └── monitoring.py
 ├── frontend/
 │   └── app.py
+├── data/
+│   ├── lake/raw/
+│   ├── warehouse/
+│   ├── feature_store/
+│   └── retention_dataset_template.csv
+├── models/
+│   └── registry/
+├── .github/workflows/ci.yml
 ├── config.py
 ├── test_gemini.py
 ├── requirements.txt
@@ -47,21 +71,9 @@ AI-Knowledge-Retention-Predictor/
 
 - Python 3.10+
 - Google Gemini API key
-- FastAPI
-- Uvicorn
-- Streamlit
-- Internet connection for Gemini API requests
+- Internet connection for Gemini requests
 
 ## Installation
-
-Clone the repository:
-
-```bash
-git clone <repository-url>
-cd AI-Knowledge-Retention-Predictor
-```
-
-Create and activate a virtual environment:
 
 ```bash
 python -m venv .venv
@@ -81,150 +93,108 @@ pip install -r requirements.txt
 
 ## Environment Configuration
 
-Create a `.env` file in the project root using `.env.example` as a guide:
+Create `.env` in the project root:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-2.0-flash
 BACKEND_API_URL=http://127.0.0.1:8000
 ```
 
-Keep `.env` private. Never commit or publish the API key.
-
-`GEMINI_MODEL` is configurable so the deployed environment can select an available Gemini model without changing application code.
+Never commit `.env` or expose the API key.
 
 ## Running the Application
 
-### Start Backend
-
-Open a terminal in the project root:
+Backend:
 
 ```bash
 uvicorn backend.main:app --reload --port 8000
 ```
 
-Backend:
-
-```text
-http://127.0.0.1:8000
-```
-
-API documentation:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-### Start Frontend
-
-Open another terminal in the project root:
+Frontend, in another terminal:
 
 ```bash
 streamlit run frontend/app.py
 ```
 
-Frontend:
+FastAPI docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Streamlit:
 
 ```text
 http://localhost:8501
 ```
 
-## Application Workflow
-
-1. Enter learner information.
-2. Add one or more study concepts.
-3. Enter the latest quiz score, revision date, and difficulty.
-4. Remove a concept when it is no longer needed.
-5. Select a concept and run retention analysis.
-6. Review the retention dashboard.
-7. Generate an AI-powered quiz for the selected/current concept.
-8. Answer all quiz questions.
-9. Submit the quiz.
-10. Review the final score and question-wise feedback.
-11. Generate a new quiz when additional practice is required.
-
 ## API Endpoints
 
-### GET `/`
+- `GET /` — service status
+- `GET /health` — deployment health check
+- `GET /metrics` — lightweight runtime request/latency metrics
+- `GET /analytics/summary` — learning-history summary
+- `GET /analytics/at-risk` — recent medium/high-risk records
+- `POST /analyze` — retention analysis
+- `POST /quiz` — AI quiz generation
+- `POST /quiz/feedback` — store quiz performance feedback
 
-Checks whether the backend API is running.
+## Data and ML Pipeline
 
-### GET `/health`
+Use `data/retention_dataset_template.csv` as a schema reference. A real labeled dataset should contain:
 
-Returns a lightweight service-health response for deployment checks.
+- learner_name
+- topic
+- last_revision_date
+- quiz_score
+- difficulty
+- retention_risk
 
-### POST `/analyze`
+The pipeline cleans missing/invalid records and creates features such as days since revision and difficulty score.
 
-Validates learner data and returns:
+To train the optional retention model:
 
-- Quiz score
-- Difficulty
-- Retention risk
-- Forgetting window
-- Recommended revision timing
-- Personalized study advice
+```python
+import pandas as pd
+from backend.data_pipeline import clean_data, engineer_features
+from backend.ml_model import train_retention_model
 
-The primary path uses Gemini for AI-assisted analysis. A deterministic fallback is used if the external AI service is temporarily unavailable.
+df = pd.read_csv("data/your_labeled_dataset.csv")
+metrics = train_retention_model(df)
+print(metrics)
+```
 
-### POST `/quiz`
-
-Validates the quiz request and generates a topic-specific multiple-choice quiz. The current application requests 10 questions, each with exactly four options (A-D) and one correct answer.
-
-## Testing Checklist
-
-Before deployment, verify:
-
-- Concept addition and validation
-- Concept removal
-- Concept persistence across reruns/navigation
-- Retention analysis
-- Retention risk calculation/guidance
-- Forgetting window
-- Revision timing
-- Personalized study advice
-- Dashboard metrics and visualizations
-- Quiz generation
-- Quiz answer selection
-- Quiz scoring
-- Correct and incorrect feedback
-- Backend/frontend communication
-- `/health` endpoint
-- Invalid API input handling
-- Gemini API configuration
-- Missing API-key handling
+The resulting evaluation includes accuracy, macro precision, macro recall, macro F1, and AUC-ROC when binary-class probabilities permit it.
 
 ## Security
 
-- Store the Gemini API key only in environment variables.
+- Store API keys only in environment variables.
 - Keep `.env` out of version control.
-- Do not place API keys directly in Python source files.
-- Use deployment-platform secrets/environment variables in staging or production.
+- Do not hard-code secrets.
+- Use deployment-platform secrets for staging/production.
+- SQLite is suitable for this project/demo; a managed database is recommended for production scale.
 
-## Current Scope vs Future Scope
+## Testing
 
-The current implementation is an AI-assisted retention and quiz application. It does **not** claim to implement a production-scale ML data lake, data warehouse, feature store, model registry, trained classification/sequence/ensemble models, CI/CD pipeline, production monitoring, or automated notification system.
+Check:
 
-Those advanced components can be added later as the project grows. Possible future enhancements include:
+- Concept add/remove and persistence
+- Retention analysis
+- Gemini and fallback paths
+- Dashboard visualization
+- Quiz generation and validation
+- Quiz scoring
+- API error handling
+- `/health` and `/metrics`
+- Analytics storage
+- Invalid input validation
+- CI syntax/compile checks
 
-- Persistent learner database and learning history
-- Authentication and user profiles
-- Historical retention trend analysis
-- Trained predictive ML models using longitudinal learner data
-- Advanced feature engineering and model evaluation
-- Adaptive quiz difficulty based on previous attempts
-- Automated revision reminders and notifications
-- Cloud deployment with CI/CD
-- Monitoring and feedback loops
-- Educator/at-risk learner analytics
+## Scope and Future Expansion
+
+The current code implements the core AI learning workflow plus practical storage, analytics, monitoring, and an optional ML pipeline. Large-scale LMS ingestion, managed data lakes/warehouses, distributed feature stores, cloud model registries, external notification providers, and full production observability require deployment infrastructure and real organizational data. They are represented by the project structure and extension points rather than being falsely presented as already deployed.
 
 ## Technology Stack
 
-- Python
-- FastAPI
-- Uvicorn
-- Streamlit
-- Google Gemini / Google GenAI SDK
-- Pydantic
-- Plotly
-- Requests
-- Python-dotenv
+Python, FastAPI, Uvicorn, Streamlit, Google Gemini, Pydantic, Plotly, Requests, Python-dotenv, SQLite, Pandas, Scikit-learn, Joblib, GitHub Actions.

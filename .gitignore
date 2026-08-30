@@ -1,34 +1,16 @@
-# Python
 __pycache__/
 *.py[cod]
-*.pyo
 .venv/
 venv/
-env/
-
-# Secrets
 .env
 .env.*
 !.env.example
-
-# IDE / OS
 .vscode/
 .idea/
-.DS_Store
-
-# Testing / caches
 .pytest_cache/
 .coverage
-htmlcov/
-.ruff_cache/
-
-# Build artifacts
-build/
-dist/
 *.egg-info/
-
-# Streamlit secrets
 .streamlit/secrets.toml
-
-# Temporary files
-tempCodeRunnerFile.py
+data/retention.db
+models/*.joblib
+models/*.json
